@@ -1,0 +1,1 @@
+%JAVA_HOME%/bin/java -jar template.jar adapters.tt=gen2/android-binders/com/google/code/Binders.java

@@ -1,0 +1,8 @@
+  <target name="init" description="Build initialization">
+    <mkdir dir="${module.basedir}/gen2/android-binders/com/google/code" />
+    <exec executable="${project.jdk.bin}/java">
+	<arg value="-jar" />
+	<arg value="template.jar" />
+	<arg value="adapters.tt=gen2/android-binders/com/google/code/Binders.java" />
+    </exec>
+  </target>

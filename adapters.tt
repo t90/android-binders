@@ -1,0 +1,134 @@
+<%@ import org.w3c.dom.Document; %>
+<%@ import javax.xml.parsers.DocumentBuilder; %>
+<%@ import javax.xml.parsers.DocumentBuilderFactory; %>
+<%@ import javax.xml.xpath.XPath; %>
+<%@ import javax.xml.xpath.XPathConstants; %>
+<%@ import javax.xml.xpath.XPathExpression; %>
+<%@ import javax.xml.xpath.XPathFactory; %>
+<%@ import java.util.ArrayList; %>
+<%@ import java.util.ArrayList; %>
+<%@ import java.util.List; %>
+<%@ import org.w3c.dom.Node; %>
+<%@ import org.w3c.dom.NodeList; %>
+<%@ import org.w3c.dom.NamedNodeMap; %>
+<%+
+    public class ViewInfo{
+        public String id;
+        public String tagName;
+    }
+
+    public class XPathDocument{
+        private final Document _document;
+        private final XPath _xPath;
+
+        public XPathDocument(String uri) throws Exception{
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder documentBuilder = factory.newDocumentBuilder();
+            _document = documentBuilder.parse(uri);
+            _xPath = XPathFactory.newInstance().newXPath();
+        }
+
+        public <T> T execute(String expression) throws Exception{
+            XPathExpression exp = _xPath.compile(expression);
+            return (T)exp.evaluate(_document);
+        }
+
+        public List<ViewInfo> getTagsWithId() throws Exception{
+            XPathExpression exp = _xPath.compile("//*[@id]");
+            NodeList nodes = (NodeList) exp.evaluate(_document, XPathConstants.NODESET);
+            ArrayList<ViewInfo> viewsToReturn = new ArrayList<>(nodes.getLength());
+            for(int i = 0; i < nodes.getLength(); ++i){
+                ViewInfo viewInfo = new ViewInfo();
+                Node item = nodes.item(i);
+                viewInfo.tagName = item.getNodeName();
+		viewInfo.id = item.getAttributes().getNamedItem("android:id").getNodeValue().replace("@+id/","");
+
+                viewsToReturn.add(viewInfo);
+            }
+            return viewsToReturn;
+        }
+
+
+    }
+%>
+<%%
+	File file = new File("res/layout/");
+	String[] files = file.list();
+%>
+package android-binders.com.google.code;
+
+import android.content.Context;
+import android.util.Pair;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.*;
+
+public class Binders
+{
+
+	private static Binders _instance = new Binders();
+
+	public static Binders instance(){
+		return _instance;
+	}
+
+<%%
+	for(String layoutFile : files){
+
+	XPathDocument doc = new XPathDocument("res/layout/" + layoutFile);
+	List<ViewInfo> viewsWithId = doc.getTagsWithId();
+
+	String className = layoutFile.replace(".xml","");
+	String layoutId = className;
+	className = className.substring(0,1).toUpperCase() + className.substring(1);
+
+%>
+	public Pair<<%=className %>,View> get<%=className %>(View view, Context context, ViewGroup parent){
+		if(view == null){
+			LayoutInflater inflater = LayoutInflater.from(context);
+			view = inflater.inflate(R.layout.<%=layoutId %>,parent,false);
+            		<%=className %> tag = new <%=className %>(view);
+            		view.setTag(R.layout.<%=layoutId %>,tag);
+            		return new Pair<<%=className %>,View>(tag,view);
+        	}
+        	return new Pair<<%=className %>,View>((<%=className %>) view.getTag(R.layout.<%=layoutId %>),view);
+	}
+
+	public <%=className %> get<%=className %>(View view){
+		<%=className %> tag = (<%=className %>)view.getTag(R.layout.<%=layoutId %>);
+		if(tag == null){
+			tag = new <%=className %>(view);
+			view.setTag(R.layout.<%=layoutId %>, tag);
+		}
+		return tag;
+	}
+
+	public class <%=className %>
+	{
+<%%
+	for(ViewInfo i : viewsWithId)
+	{
+		if(i.tagName.equals("fragment")) continue;
+%>
+		public <%=i.tagName %> <%=i.id %>;
+<%%
+	}
+%>
+		public <%=className %>(View view){
+<%%
+	for(ViewInfo i : viewsWithId)
+	{
+		if(i.tagName.equals("fragment")) continue;
+%>
+			this.<%=i.id %> = (<%=i.tagName %>)view.findViewById(R.id.<%=i.id %>);
+<%%
+	}
+%>
+		}
+
+	}
+<%%
+	}
+%>
+}
